@@ -97,6 +97,32 @@ export default function App() {
   const [isAnimating, setIsAnimating] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const shouldSelectAllRef = useRef(false)
+
+  // Robust focus and select - works on both desktop and browser
+  const focusAndSelect = useCallback(() => {
+    if (!inputRef.current) return
+
+    shouldSelectAllRef.current = true
+
+    // Multiple attempts to ensure it works in browser iframe
+    const attemptFocus = () => {
+      if (inputRef.current) {
+        inputRef.current.focus()
+        inputRef.current.select()
+      }
+    }
+
+    // Try immediately
+    attemptFocus()
+
+    // Try after a frame (helps with browser)
+    requestAnimationFrame(() => {
+      attemptFocus()
+      // Try once more after a short delay (browser iframe needs this)
+      setTimeout(attemptFocus, 50)
+    })
+  }, [])
 
   // Debounced rename function
   const debouncedRename = useDebounce((name: string) => {
@@ -132,12 +158,9 @@ export default function App() {
       }
 
       // Auto-focus and select after state update
-      setTimeout(() => {
-        if (inputRef.current && newSelection.count > 0) {
-          inputRef.current.focus()
-          inputRef.current.select()
-        }
-      }, 0)
+      if (newSelection.count > 0) {
+        focusAndSelect()
+      }
     }
 
     window.addEventListener('message', handleMessage)
@@ -146,15 +169,12 @@ export default function App() {
     parent.postMessage({ pluginMessage: { type: 'init' } }, '*')
 
     return () => window.removeEventListener('message', handleMessage)
-  }, [])
+  }, [focusAndSelect])
 
   // Focus input on mount
   useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.focus()
-      inputRef.current.select()
-    }
-  }, [])
+    focusAndSelect()
+  }, [focusAndSelect])
 
 
   // Auto-focus container when no selection
@@ -195,10 +215,7 @@ export default function App() {
 
   // Focus input when clicking anywhere on the plugin
   const handleContainerClick = () => {
-    if (inputRef.current) {
-      inputRef.current.focus()
-      inputRef.current.select()
-    }
+    focusAndSelect()
   }
 
   // Handle input change
@@ -206,9 +223,22 @@ export default function App() {
     const value = e.target.value
     setInputValue(value)
 
+    // User is typing, don't auto-select anymore
+    shouldSelectAllRef.current = false
+
     // Live rename with debounce
     if (value.length > 0) {
       debouncedRename(value)
+    }
+  }
+
+  // Handle focus - select all text when input is focused
+  const handleFocus = () => {
+    if (shouldSelectAllRef.current && inputRef.current) {
+      // Multiple attempts to select - browser iframes can be tricky
+      inputRef.current.select()
+      setTimeout(() => inputRef.current?.select(), 0)
+      setTimeout(() => inputRef.current?.select(), 10)
     }
   }
 
@@ -293,6 +323,7 @@ export default function App() {
           value={inputValue}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
+          onFocus={handleFocus}
           placeholder="Rename"
           className={`flex-1 bg-transparent border-none outline-none text-[13px] text-white placeholder:text-[#6d6d6d] ${selection.count > 1 ? 'ml-2' : 'ml-0.5'}`}
           autoFocus
