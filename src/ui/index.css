@@ -2,17 +2,15 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Figma provides CSS variables when themeColors: true */
+/* We define fallbacks for development/preview */
 :root {
-  --background: 0 0% 18%;
-  --foreground: 0 0% 100%;
-  --muted: 0 0% 24%;
-  --muted-foreground: 0 0% 60%;
-  --border: none;
-  --input: 0 0% 22%;
-  --ring: 0 0% 40%;
-  --primary: 0 0% 100%;
-  --primary-foreground: 0 0% 18%;
-  --radius: 0;
+  --color-bg: var(--figma-color-bg, #2d2d2d);
+  --color-bg-secondary: var(--figma-color-bg-secondary, #3d3d3d);
+  --color-text: var(--figma-color-text, #ffffff);
+  --color-text-secondary: var(--figma-color-text-secondary, #9d9d9d);
+  --color-text-tertiary: var(--figma-color-text-tertiary, #6d6d6d);
+  --color-border: var(--figma-color-border, #555555);
 }
 
 * {
@@ -26,8 +24,8 @@
 html, body, #root {
   font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 11px;
-  background: #2d2d2d;
-  color: #fff;
+  background: var(--color-bg);
+  color: var(--color-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
@@ -39,4 +37,8 @@ input {
   border: none !important;
   outline: none !important;
   box-shadow: none !important;
+}
+
+input::placeholder {
+  color: var(--color-text-tertiary);
 }

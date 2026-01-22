@@ -28,7 +28,7 @@ interface SelectionInfo {
 
 // Icon component based on layer type
 function LayerIcon({ type }: { type: LayerType }) {
-  const iconProps = { size: 16, weight: 'regular' as const, className: 'text-[#9d9d9d]' }
+  const iconProps = { size: 16, weight: 'regular' as const, style: { color: 'var(--color-text-secondary)' } }
 
   switch (type) {
     case 'frame':
@@ -96,7 +96,6 @@ export default function App() {
   const [displayCount, setDisplayCount] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
-  const containerRef = useRef<HTMLDivElement>(null)
   const shouldSelectAllRef = useRef(false)
 
   // Robust focus and select - works on both desktop and browser
@@ -177,12 +176,19 @@ export default function App() {
   }, [focusAndSelect])
 
 
-  // Auto-focus container when no selection
+  // Select text after input value has been rendered (fixes race condition)
   useEffect(() => {
-    if (selection.count === 0 && containerRef.current) {
-      containerRef.current.focus()
+    if (selection.count > 0 && shouldSelectAllRef.current && inputRef.current) {
+      // Wait for React to render the new value, then select
+      const timer = setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus()
+          inputRef.current.select()
+        }
+      }, 0)
+      return () => clearTimeout(timer)
     }
-  }, [selection.count])
+  }, [selection.nodeIds.join(',')])
 
   // Animate count when it changes
   useEffect(() => {
@@ -282,50 +288,45 @@ export default function App() {
     }
   }
 
-  // No selection state
-  if (selection.count === 0) {
-    return (
-      <div
-        ref={containerRef}
-        className="h-full flex items-center px-3 cursor-pointer outline-none"
-        onClick={() => containerRef.current?.focus()}
-        tabIndex={0}
-        autoFocus
-      >
-        <p className="text-white/50 text-[13px]">
-          Select layer(s) to name
-        </p>
-      </div>
-    )
-  }
-
+  // Always render the input so inputRef is always available
   return (
     <div
       className="h-full cursor-text flex items-center"
       onClick={handleContainerClick}
     >
       <div className="flex items-center gap-2 px-3 w-full">
-        {/* Layer type icon with count badge */}
-        <div className="relative flex-shrink-0">
-          <LayerIcon type={selection.layerType} />
-          {selection.count > 1 && (
-            <span
-              className={`absolute -top-1.5 -right-2 text-[10px] text-[#ccc] bg-[#3d3d3d] px-1 min-w-[16px] text-center rounded-full border border-[#555] transition-transform duration-100 ${isAnimating ? 'scale-110' : 'scale-100'}`}
-            >
-              {displayCount}
-            </span>
-          )}
-        </div>
+        {/* Layer type icon with count badge - only show when selection exists */}
+        {selection.count > 0 && (
+          <div className="relative flex-shrink-0">
+            <LayerIcon type={selection.layerType} />
+            {selection.count > 1 && (
+              <span
+                className={`absolute -top-1.5 -right-2 text-[10px] px-1 min-w-[16px] text-center rounded-full border transition-transform duration-100 ${isAnimating ? 'scale-110' : 'scale-100'}`}
+                style={{
+                  color: 'var(--color-text)',
+                  backgroundColor: 'var(--color-bg-secondary)',
+                  borderColor: 'var(--color-border)',
+                }}
+              >
+                {displayCount}
+              </span>
+            )}
+          </div>
+        )}
 
-        {/* Input field - minimal style like Figma */}
+        {/* Input field - always rendered, placeholder changes based on selection */}
         <input
           ref={inputRef}
           value={inputValue}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
-          placeholder="Rename"
-          className={`flex-1 bg-transparent border-none outline-none text-[13px] text-white placeholder:text-[#6d6d6d] ${selection.count > 1 ? 'ml-2' : 'ml-0.5'}`}
+          disabled={selection.count === 0}
+          placeholder={selection.count === 0 ? "Select layer(s) to name" : "Rename"}
+          className={`flex-1 bg-transparent border-none outline-none text-[13px] ${selection.count > 1 ? 'ml-2' : 'ml-0.5'} ${selection.count === 0 ? 'cursor-default' : ''}`}
+          style={{
+            color: 'var(--color-text)',
+          }}
           autoFocus
           spellCheck={false}
           autoComplete="off"

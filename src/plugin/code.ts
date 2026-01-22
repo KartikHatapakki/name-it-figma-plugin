@@ -95,7 +95,7 @@ function selectSibling(direction: 'next' | 'previous') {
 figma.showUI(__html__, {
   width: 240,
   height: 40,
-  themeColors: false,
+  themeColors: true,
 })
 
 // Get current selection info
