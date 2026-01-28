@@ -19,6 +19,7 @@ interface BatchGridProps {
   getColumnValues: (rows: number[], col: number) => string[]
   previewNames: string[]
   onZoomToLayer: (nodeId: string) => void
+  onRowSelect?: (rowIndex: number) => void
 }
 
 interface Selection {
@@ -40,6 +41,7 @@ export function BatchGrid({
   getColumnValues,
   previewNames,
   onZoomToLayer,
+  onRowSelect,
 }: BatchGridProps) {
   const [selection, setSelection] = useState<Selection | null>(null)
   const [isSelecting, setIsSelecting] = useState(false)
@@ -91,6 +93,19 @@ export function BatchGrid({
       endCol: Math.max(sel.startCol, sel.endCol),
     }
   }, [])
+
+  // Track selected row for auto-zoom
+  const lastSelectedRowRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (!selection || !onRowSelect) return
+    const sel = getNormalizedSelection(selection)
+    if (!sel) return
+    const selectedRow = sel.startRow
+    if (selectedRow !== lastSelectedRowRef.current) {
+      lastSelectedRowRef.current = selectedRow
+      onRowSelect(selectedRow)
+    }
+  }, [selection, onRowSelect, getNormalizedSelection])
 
   // Check if cell is in selection range
   const isCellInSelection = useCallback((row: number, col: number) => {

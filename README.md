@@ -18,6 +18,7 @@ A minimal Figma plugin for lightning-fast layer renaming. Skip the double-click 
 - **Drag-to-Fill** - Select cells and drag to fill with series (1, 2, 3... or A, B, C...)
 - **Column Management** - Add, delete, and rename columns to structure your naming convention
 - **Live Preview** - See the final combined name before applying
+- **Track Mode** - Toggle to auto-zoom to each layer as you select rows in the grid
 - **Undo/Redo** - Full support for Cmd+Z and Cmd+Shift+Z
 
 ## Keyboard Shortcuts
@@ -101,6 +102,7 @@ npm run dev
 
 | Version | Description |
 |---------|-------------|
+| v4.1.0 | Track mode - auto-zoom to layers as you navigate the grid |
 | v4.0.0 | Advanced batch rename with Excel-like grid, drag-to-fill, smart parsing |
 | v3.0.0 | Dark/light mode support, UI polish |
 | v2.0.0 | Multi-select support, keyboard navigation |

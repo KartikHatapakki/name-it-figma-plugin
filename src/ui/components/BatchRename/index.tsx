@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react'
+import { useEffect, useCallback, useState } from 'react'
 import { LayerInfo, SortDirection } from '../../types/batch'
 import { DirectionPicker } from './DirectionPicker'
 import { BatchGrid } from './BatchGrid'
@@ -11,6 +11,8 @@ interface BatchRenameProps {
 }
 
 export function BatchRename({ layers, onApply, onCancel }: BatchRenameProps) {
+  const [autoZoom, setAutoZoom] = useState(false)
+
   const {
     state,
     setCellValue,
@@ -49,6 +51,12 @@ export function BatchRename({ layers, onApply, onCancel }: BatchRenameProps) {
     parent.postMessage({ pluginMessage: { type: 'zoomToLayer', nodeId } }, '*')
   }, [])
 
+  const handleRowSelect = useCallback((rowIndex: number) => {
+    if (autoZoom && state.layerIds[rowIndex]) {
+      parent.postMessage({ pluginMessage: { type: 'zoomToLayer', nodeId: state.layerIds[rowIndex] } }, '*')
+    }
+  }, [autoZoom, state.layerIds])
+
   const previewNames = getPreviewNames()
 
   // Request UI resize based on content
@@ -82,8 +90,16 @@ export function BatchRename({ layers, onApply, onCancel }: BatchRenameProps) {
           direction={state.sortDirection}
           onChange={handleDirectionChange}
         />
-        <div className="batch-count">
-          {layers.length} layer{layers.length !== 1 ? 's' : ''}
+        <div className="batch-toolbar-right">
+          <label className="track-toggle">
+            <span>Track</span>
+            <div className={`toggle-switch ${autoZoom ? 'active' : ''}`} onClick={() => setAutoZoom(!autoZoom)}>
+              <div className="toggle-knob" />
+            </div>
+          </label>
+          <div className="batch-count">
+            {layers.length} layer{layers.length !== 1 ? 's' : ''}
+          </div>
         </div>
       </div>
 
@@ -99,6 +115,7 @@ export function BatchRename({ layers, onApply, onCancel }: BatchRenameProps) {
         getColumnValues={getColumnValues}
         previewNames={previewNames}
         onZoomToLayer={handleZoomToLayer}
+        onRowSelect={handleRowSelect}
       />
 
       <div className="batch-actions">

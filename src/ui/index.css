@@ -167,6 +167,50 @@ input::placeholder {
   justify-content: space-between;
 }
 
+.batch-toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.track-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.toggle-switch {
+  width: 28px;
+  height: 16px;
+  border-radius: 8px;
+  background: var(--color-bg-tertiary);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.toggle-switch.active {
+  background: #0d99ff;
+}
+
+.toggle-knob {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: white;
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s ease;
+}
+
+.toggle-switch.active .toggle-knob {
+  transform: translateX(12px);
+}
+
 /* Green pill for layer counts - subtle, fits dark theme */
 .batch-count,
 .layer-count-pill {
@@ -502,6 +546,7 @@ input::placeholder {
   font-weight: 500;
   font-size: 11px;
   color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
 }
 
 /* Grid Cells */

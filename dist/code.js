@@ -235,14 +235,13 @@
       }
       const targetX = bounds.x + bounds.width / 2;
       const targetY = bounds.y + bounds.height / 2;
-      const contextMultiplier = 5;
       const minVisibleSize = 800;
-      const virtualWidth = Math.max(bounds.width * contextMultiplier, minVisibleSize);
-      const virtualHeight = Math.max(bounds.height * contextMultiplier, minVisibleSize);
+      const virtualWidth = Math.max(bounds.width * 3, minVisibleSize);
+      const virtualHeight = Math.max(bounds.height * 3, minVisibleSize);
       const viewportBounds = figma.viewport.bounds;
       const zoomX = viewportBounds.width / virtualWidth;
       const zoomY = viewportBounds.height / virtualHeight;
-      const targetZoom = Math.min(zoomX, zoomY, 0.75);
+      const targetZoom = Math.max(0.15, Math.min(zoomX, zoomY, 0.5));
       const startCenter = figma.viewport.center;
       const startZoom = figma.viewport.zoom;
       const steps = 12;

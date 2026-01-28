@@ -314,16 +314,16 @@ async function zoomToLayer(nodeId: string) {
     const targetX = bounds.x + bounds.width / 2
     const targetY = bounds.y + bounds.height / 2
 
-    // Calculate target zoom (show layer with 4x context around it)
-    const contextMultiplier = 5 // Show 5x area around layer for more context
+    // Calculate target zoom - consistent level regardless of layer size
     const minVisibleSize = 800
-    const virtualWidth = Math.max(bounds.width * contextMultiplier, minVisibleSize)
-    const virtualHeight = Math.max(bounds.height * contextMultiplier, minVisibleSize)
+    const virtualWidth = Math.max(bounds.width * 3, minVisibleSize)
+    const virtualHeight = Math.max(bounds.height * 3, minVisibleSize)
 
     const viewportBounds = figma.viewport.bounds
     const zoomX = viewportBounds.width / virtualWidth
     const zoomY = viewportBounds.height / virtualHeight
-    const targetZoom = Math.min(zoomX, zoomY, 0.75) // Max 0.75x zoom to keep context
+    // Clamp zoom between 0.15 (don't zoom out too far) and 0.5 (don't zoom in too much)
+    const targetZoom = Math.max(0.15, Math.min(zoomX, zoomY, 0.5))
 
     // Current viewport state
     const startCenter = figma.viewport.center
