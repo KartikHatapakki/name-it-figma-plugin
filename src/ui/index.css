@@ -3,14 +3,44 @@
 @tailwind utilities;
 
 /* Figma provides CSS variables when themeColors: true */
-/* We define fallbacks for development/preview */
+/* We define accessible fallbacks for development/preview */
+
+/* Dark mode fallbacks (default) */
 :root {
-  --color-bg: var(--figma-color-bg, #2d2d2d);
-  --color-bg-secondary: var(--figma-color-bg-secondary, #3d3d3d);
+  --color-bg: var(--figma-color-bg, #2c2c2c);
+  --color-bg-secondary: var(--figma-color-bg-secondary, #383838);
+  --color-bg-tertiary: var(--figma-color-bg-tertiary, #444444);
   --color-text: var(--figma-color-text, #ffffff);
-  --color-text-secondary: var(--figma-color-text-secondary, #9d9d9d);
-  --color-text-tertiary: var(--figma-color-text-tertiary, #6d6d6d);
-  --color-border: var(--figma-color-border, #555555);
+  --color-text-secondary: var(--figma-color-text-secondary, #ababab);
+  --color-text-tertiary: var(--figma-color-text-tertiary, #8c8c8c);
+  --color-border: var(--figma-color-border, #444444);
+  --color-icon: var(--figma-color-icon, #b3b3b3);
+  --color-icon-secondary: var(--figma-color-icon-secondary, #8c8c8c);
+
+  /* Consistent spacing scale */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+
+  /* Consistent radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+}
+
+/* Light mode fallbacks */
+@media (prefers-color-scheme: light) {
+  :root {
+    --color-bg: var(--figma-color-bg, #ffffff);
+    --color-bg-secondary: var(--figma-color-bg-secondary, #f5f5f5);
+    --color-bg-tertiary: var(--figma-color-bg-tertiary, #e5e5e5);
+    --color-text: var(--figma-color-text, #1e1e1e);
+    --color-text-secondary: var(--figma-color-text-secondary, #6e6e6e);
+    --color-text-tertiary: var(--figma-color-text-tertiary, #8c8c8c);
+    --color-border: var(--figma-color-border, #d4d4d4);
+    --color-icon: var(--figma-color-icon, #333333);
+    --color-icon-secondary: var(--figma-color-icon-secondary, #6e6e6e);
+  }
 }
 
 * {
@@ -32,6 +62,29 @@ html, body, #root {
   height: 100%;
 }
 
+/* Custom scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 input {
   background: transparent !important;
   border: none !important;
@@ -40,5 +93,540 @@ input {
 }
 
 input::placeholder {
-  color: var(--color-text-tertiary);
+  color: var(--color-text-secondary);
+}
+
+/* Advanced Button */
+.advanced-btn {
+  width: 100%;
+  padding: 8px var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.advanced-btn:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+}
+
+/* Mode transition animations */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Smooth fade animation for mode transitions */
+@keyframes smoothFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-fade-in {
+  animation: fadeSlideIn 0.15s ease-out;
+}
+
+.mode-transition {
+  animation: smoothFadeIn 0.5s ease;
+}
+
+/* Batch Rename Container */
+.batch-rename {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: var(--space-md);
+  gap: var(--space-sm);
+  background: var(--color-bg);
+  user-select: none;
+  animation: smoothFadeIn 0.5s ease;
+}
+
+.batch-rename input {
+  user-select: text;
+}
+
+.batch-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Green pill for layer counts - subtle, fits dark theme */
+.batch-count,
+.layer-count-pill {
+  font-size: 11px;
+  font-weight: 500;
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.15);
+  padding: 4px 10px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.layer-count-pill {
+  font-size: 10px;
+  padding: 2px 6px;
+}
+
+/* Light mode adjustments for pills */
+@media (prefers-color-scheme: light) {
+  .batch-count,
+  .layer-count-pill {
+    color: #15803d;
+    background: rgba(22, 163, 74, 0.12);
+  }
+}
+
+.batch-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 200px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
+  background: var(--color-bg);
+}
+
+/* Direction Picker */
+.direction-picker {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.direction-label {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+.direction-buttons {
+  display: flex;
+  gap: 2px;
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-sm);
+  border: none;
+  padding: 2px;
+  position: relative;
+}
+
+.direction-slider {
+  position: absolute;
+  width: 28px;
+  height: 24px;
+  background: var(--color-bg);
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px var(--color-border);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 0;
+}
+
+.direction-btn {
+  width: 28px;
+  height: 24px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: color 0.15s ease;
+  border: none;
+  background: transparent;
+  color: var(--color-icon-secondary);
+  position: relative;
+  z-index: 1;
+}
+
+.direction-btn:hover {
+  color: var(--color-text);
+}
+
+.direction-btn.active {
+  color: var(--color-text);
+}
+
+/* Batch Grid */
+.batch-grid-container {
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  user-select: none;
+  max-height: 100%;
+  flex: 1;
+}
+
+.batch-grid-scroll {
+  overflow: auto;
+  height: 100%;
+  width: 100%;
+}
+
+.batch-grid-container:focus {
+  outline: none;
+}
+
+.batch-grid-inner {
+  display: inline-block;
+  min-width: 100%;
+}
+
+.batch-grid-header,
+.batch-grid-row {
+  display: grid;
+  gap: 1px;
+  background: var(--color-border);
+}
+
+.batch-grid-row {
+  animation: rowSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes rowSlideIn {
+  from {
+    opacity: 0.5;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.batch-grid-header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.batch-grid-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--color-border);
+}
+
+.header-icon-cell {
+  background: var(--color-bg-secondary);
+  width: 32px;
+  position: relative;
+}
+
+.add-column-btn-icon {
+  position: absolute;
+  right: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s ease;
+  background: var(--figma-color-bg-brand, #18a0fb);
+  color: white;
+  z-index: 5;
+  border: none;
+}
+
+.add-column-btn-icon:hover {
+  transform: translateY(-50%) scale(1.15);
+}
+
+.header-icon-cell:hover .add-column-btn-icon {
+  opacity: 1;
+}
+
+.header-cell-wrapper {
+  position: relative;
+  display: flex;
+  background: var(--color-bg-secondary);
+}
+
+.column-header {
+  flex: 1;
+  background: var(--color-bg-secondary);
+  padding: var(--space-sm) var(--space-sm) var(--space-sm) 14px;
+  font-weight: 500;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--color-text);
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.column-header .header-content {
+  flex: 1;
+  min-width: 0;
+  padding-right: 4px;
+}
+
+.column-header .header-text {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+}
+
+.column-header .header-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-text);
+  font-size: 11px;
+  line-height: 1.4;
+  font-weight: 500;
+  text-align: left;
+}
+
+.column-header .delete-btn {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  background: transparent;
+  color: var(--color-icon-secondary);
+  margin-left: auto;
+  margin-right: 6px;
+}
+
+.column-header:hover .delete-btn {
+  opacity: 0.7;
+}
+
+.column-header .delete-btn:hover {
+  opacity: 1;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text);
+}
+
+.column-header.selected {
+  box-shadow: inset 0 0 0 2px var(--figma-color-bg-brand, #18a0fb);
+  z-index: 5;
+}
+
+.column-header.selected .delete-btn {
+  opacity: 0.7;
+}
+
+.column-header:focus {
+  outline: none;
+}
+
+.add-column-btn {
+  position: absolute;
+  right: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s ease;
+  background: var(--figma-color-bg-brand, #18a0fb);
+  color: white;
+  z-index: 5;
+}
+
+.add-column-btn:hover {
+  transform: translateY(-50%) scale(1.15);
+}
+
+.header-cell-wrapper:hover .add-column-btn {
+  opacity: 1;
+}
+
+.add-column-btn-left {
+  position: absolute;
+  left: -8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.15s ease;
+  background: var(--figma-color-bg-brand, #18a0fb);
+  color: white;
+  z-index: 5;
+}
+
+.add-column-btn-left:hover {
+  transform: translateY(-50%) scale(1.15);
+}
+
+.header-cell-wrapper:first-of-type:hover .add-column-btn-left {
+  opacity: 1;
+}
+
+.preview-header {
+  background: var(--color-bg-secondary);
+  padding: var(--space-sm) var(--space-sm) var(--space-sm) 14px;
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+/* Grid Cells */
+.layer-icon-cell {
+  background: var(--color-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  cursor: pointer;
+  transition: all 0.1s ease;
+  color: var(--color-icon-secondary);
+}
+
+.layer-icon-cell:hover {
+  background: var(--color-bg-secondary);
+  color: var(--color-icon);
+}
+
+.batch-grid-cell {
+  background: var(--color-bg);
+  padding: var(--space-xs) var(--space-sm);
+  position: relative;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  transition: background 0.1s ease, box-shadow 0.1s ease;
+}
+
+.batch-grid-cell input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--color-text);
+  font-size: 11px;
+  line-height: 1.4;
+  cursor: default;
+}
+
+.batch-grid-cell.selected input,
+.batch-grid-cell.editing input {
+  cursor: text;
+}
+
+.batch-grid-cell.selected {
+  box-shadow: inset 0 0 0 2px var(--figma-color-bg-brand, #18a0fb);
+  z-index: 5;
+}
+
+.batch-grid-cell.in-selection {
+  background: rgba(24, 160, 251, 0.2);
+  box-shadow: inset 0 0 0 1px var(--figma-color-bg-brand, #18a0fb);
+}
+
+.batch-grid-cell.in-drag-range {
+  background: rgba(24, 160, 251, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(24, 160, 251, 0.5);
+}
+
+/* Drag Handle */
+.drag-handle {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  background: var(--figma-color-bg-brand, #18a0fb);
+  cursor: crosshair;
+  border-radius: 2px;
+  z-index: 20;
+  border: 2px solid var(--color-bg);
+  transition: transform 0.1s ease;
+}
+
+.drag-handle:hover {
+  transform: scale(1.3);
+  background: var(--figma-color-bg-brand-hover, #0d8de3);
+}
+
+/* Preview Cell */
+.preview-cell {
+  background: var(--color-bg-secondary);
+  padding: var(--space-xs) var(--space-sm);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  line-height: 32px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Action Buttons */
+.batch-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+}
+
+.btn-primary,
+.btn-secondary {
+  padding: 6px var(--space-md);
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-primary {
+  background: var(--figma-color-bg-brand, #0d99ff);
+  color: white;
+  border: none;
+}
+
+.btn-primary:hover {
+  background: var(--figma-color-bg-brand-hover, #0c8ce9);
+}
+
+.btn-secondary {
+  background: transparent;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover {
+  background: var(--color-bg-secondary);
 }

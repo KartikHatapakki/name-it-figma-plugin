@@ -67,8 +67,8 @@
     }
   }
   figma.showUI(__html__, {
-    width: 240,
-    height: 40,
+    width: 280,
+    height: 52,
     themeColors: true
   });
   function getSelectionInfo() {
@@ -140,8 +140,129 @@
       case "enterFrame":
         enterFrame();
         break;
+      case "getLayerPositions":
+        getLayerPositions();
+        break;
+      case "batchRename":
+        if (msg.renames) {
+          handleBatchRename(msg.renames);
+        }
+        break;
+      case "resizeUI":
+        if (msg.width && msg.height) {
+          figma.ui.resize(msg.width, msg.height);
+        }
+        break;
+      case "zoomToLayer":
+        if (msg.nodeId) {
+          zoomToLayer(msg.nodeId);
+        }
+        break;
+      case "zoomToSelection":
+        zoomToSelection();
+        break;
     }
   };
+  var isZooming = false;
+  async function zoomToSelection() {
+    if (isZooming)
+      return;
+    isZooming = true;
+    try {
+      const selection = figma.currentPage.selection;
+      if (selection.length === 0) {
+        isZooming = false;
+        return;
+      }
+      let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+      for (const node of selection) {
+        if (node.absoluteBoundingBox) {
+          const bounds = node.absoluteBoundingBox;
+          minX = Math.min(minX, bounds.x);
+          minY = Math.min(minY, bounds.y);
+          maxX = Math.max(maxX, bounds.x + bounds.width);
+          maxY = Math.max(maxY, bounds.y + bounds.height);
+        }
+      }
+      if (minX === Infinity) {
+        isZooming = false;
+        return;
+      }
+      const width = maxX - minX;
+      const height = maxY - minY;
+      const targetX = minX + width / 2;
+      const targetY = minY + height / 2;
+      const contextMultiplier = 2;
+      const minVisibleSize = 400;
+      const virtualWidth = Math.max(width * contextMultiplier, minVisibleSize);
+      const virtualHeight = Math.max(height * contextMultiplier, minVisibleSize);
+      const viewportBounds = figma.viewport.bounds;
+      const zoomX = viewportBounds.width / virtualWidth;
+      const zoomY = viewportBounds.height / virtualHeight;
+      const targetZoom = Math.min(zoomX, zoomY, 1);
+      const startCenter = figma.viewport.center;
+      const startZoom = figma.viewport.zoom;
+      const steps = 12;
+      const duration = 25;
+      for (let i = 1; i <= steps; i++) {
+        const t = easeOutCubic(i / steps);
+        figma.viewport.center = {
+          x: startCenter.x + (targetX - startCenter.x) * t,
+          y: startCenter.y + (targetY - startCenter.y) * t
+        };
+        figma.viewport.zoom = startZoom + (targetZoom - startZoom) * t;
+        await new Promise((resolve) => setTimeout(resolve, duration));
+      }
+    } finally {
+      isZooming = false;
+    }
+  }
+  async function zoomToLayer(nodeId) {
+    if (isZooming)
+      return;
+    isZooming = true;
+    try {
+      const node = await figma.getNodeByIdAsync(nodeId);
+      if (!node || !("absoluteBoundingBox" in node)) {
+        isZooming = false;
+        return;
+      }
+      const sceneNode = node;
+      const bounds = sceneNode.absoluteBoundingBox;
+      if (!bounds) {
+        isZooming = false;
+        return;
+      }
+      const targetX = bounds.x + bounds.width / 2;
+      const targetY = bounds.y + bounds.height / 2;
+      const contextMultiplier = 5;
+      const minVisibleSize = 800;
+      const virtualWidth = Math.max(bounds.width * contextMultiplier, minVisibleSize);
+      const virtualHeight = Math.max(bounds.height * contextMultiplier, minVisibleSize);
+      const viewportBounds = figma.viewport.bounds;
+      const zoomX = viewportBounds.width / virtualWidth;
+      const zoomY = viewportBounds.height / virtualHeight;
+      const targetZoom = Math.min(zoomX, zoomY, 0.75);
+      const startCenter = figma.viewport.center;
+      const startZoom = figma.viewport.zoom;
+      const steps = 12;
+      const duration = 25;
+      for (let i = 1; i <= steps; i++) {
+        const t = easeOutCubic(i / steps);
+        const newX = startCenter.x + (targetX - startCenter.x) * t;
+        const newY = startCenter.y + (targetY - startCenter.y) * t;
+        const newZoom = startZoom + (targetZoom - startZoom) * t;
+        figma.viewport.center = { x: newX, y: newY };
+        figma.viewport.zoom = newZoom;
+        await new Promise((resolve) => setTimeout(resolve, duration));
+      }
+    } finally {
+      isZooming = false;
+    }
+  }
+  function easeOutCubic(t) {
+    return 1 - Math.pow(1 - t, 3);
+  }
   function enterFrame() {
     const selection = figma.currentPage.selection;
     if (selection.length !== 1)
@@ -149,6 +270,42 @@
     const node = selection[0];
     if ("children" in node && node.children.length > 0) {
       figma.currentPage.selection = [...node.children];
+    }
+  }
+  function getLayerPositions() {
+    const selection = figma.currentPage.selection;
+    const layers = selection.map((node) => {
+      let x = 0;
+      let y = 0;
+      if (node.absoluteBoundingBox) {
+        x = node.absoluteBoundingBox.x;
+        y = node.absoluteBoundingBox.y;
+      } else if ("x" in node && "y" in node) {
+        x = node.x;
+        y = node.y;
+      }
+      return {
+        id: node.id,
+        name: node.name,
+        x,
+        y,
+        type: getLayerType(node)
+      };
+    });
+    figma.ui.postMessage({
+      type: "layerPositions",
+      layers
+    });
+  }
+  async function handleBatchRename(renames) {
+    for (const { nodeId, newName } of renames) {
+      const node = await figma.getNodeByIdAsync(nodeId);
+      if (node && "name" in node) {
+        const sceneNode = node;
+        if (!sceneNode.locked) {
+          sceneNode.name = newName;
+        }
+      }
     }
   }
 })();

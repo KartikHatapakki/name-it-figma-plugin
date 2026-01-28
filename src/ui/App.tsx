@@ -1,22 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import {
-  FrameCorners,
-  TextT,
-  BezierCurve,
-  Square,
-  Circle,
-  Polygon,
-  Star,
-  LineSegment,
-  Image,
-  Cube,
-  Copy,
-  FolderSimple,
-  Stack,
-  CursorClick,
-} from '@phosphor-icons/react'
-
-type LayerType = 'frame' | 'text' | 'vector' | 'rectangle' | 'ellipse' | 'polygon' | 'star' | 'line' | 'image' | 'component' | 'instance' | 'group' | 'mixed' | 'other'
+import { LayerIcon, LayerType } from './components/shared/LayerIcon'
+import { BatchRename } from './components/BatchRename'
+import { useDebounce } from './hooks/useDebounce'
+import { LayerInfo } from './types/batch'
 
 interface SelectionInfo {
   count: number
@@ -26,65 +12,8 @@ interface SelectionInfo {
   layerType: LayerType
 }
 
-// Icon component based on layer type
-function LayerIcon({ type }: { type: LayerType }) {
-  const iconProps = { size: 16, weight: 'regular' as const, style: { color: 'var(--color-text-secondary)' } }
-
-  switch (type) {
-    case 'frame':
-      return <FrameCorners {...iconProps} />
-    case 'text':
-      return <TextT {...iconProps} />
-    case 'vector':
-      return <BezierCurve {...iconProps} />
-    case 'rectangle':
-      return <Square {...iconProps} />
-    case 'ellipse':
-      return <Circle {...iconProps} />
-    case 'polygon':
-      return <Polygon {...iconProps} />
-    case 'star':
-      return <Star {...iconProps} />
-    case 'line':
-      return <LineSegment {...iconProps} />
-    case 'image':
-      return <Image {...iconProps} />
-    case 'component':
-      return <Cube {...iconProps} />
-    case 'instance':
-      return <Copy {...iconProps} />
-    case 'group':
-      return <FolderSimple {...iconProps} />
-    case 'mixed':
-      return <Stack {...iconProps} />
-    default:
-      return <CursorClick {...iconProps} />
-  }
-}
-
-// Debounce helper
-function useDebounce<T extends (...args: Parameters<T>) => void>(
-  callback: T,
-  delay: number
-): T {
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  const debouncedCallback = useCallback(
-    (...args: Parameters<T>) => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current)
-      }
-      timeoutRef.current = setTimeout(() => {
-        callback(...args)
-      }, delay)
-    },
-    [callback, delay]
-  ) as T
-
-  return debouncedCallback
-}
-
 export default function App() {
+  const [mode, setMode] = useState<'quick' | 'batch'>('quick')
   const [selection, setSelection] = useState<SelectionInfo>({
     count: 0,
     names: [],
@@ -92,6 +21,7 @@ export default function App() {
     nodeIds: [],
     layerType: 'other',
   })
+  const [batchLayers, setBatchLayers] = useState<LayerInfo[]>([])
   const [inputValue, setInputValue] = useState('')
   const [displayCount, setDisplayCount] = useState(0)
   const [isAnimating, setIsAnimating] = useState(false)
@@ -131,54 +61,60 @@ export default function App() {
     )
   }, 150)
 
+  // Ref to track current mode for message handler
+  const modeRef = useRef(mode)
+  useEffect(() => { modeRef.current = mode }, [mode])
+
   // Handle messages from plugin
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const msg = event.data.pluginMessage
-      if (!msg || msg.type !== 'selection') return
+      if (!msg) return
 
-      const newSelection: SelectionInfo = {
-        count: msg.count,
-        names: msg.names,
-        hasLocked: msg.hasLocked,
-        nodeIds: msg.nodeIds,
-        layerType: msg.layerType || 'other',
-      }
+      if (msg.type === 'selection') {
+        const newSelection: SelectionInfo = {
+          count: msg.count,
+          names: msg.names,
+          hasLocked: msg.hasLocked,
+          nodeIds: msg.nodeIds,
+          layerType: msg.layerType || 'other',
+        }
 
-      setSelection(newSelection)
+        setSelection(newSelection)
 
-      // Update input when selection changes
-      if (newSelection.count === 1) {
-        setInputValue(newSelection.names[0])
-      } else if (newSelection.count > 1) {
-        setInputValue('')
-      } else {
-        setInputValue('')
-      }
+        // Update input when selection changes (only in quick mode)
+        if (modeRef.current === 'quick') {
+          setInputValue(newSelection.count === 1 ? newSelection.names[0] : '')
+          if (newSelection.count > 0) focusAndSelect()
+        }
 
-      // Auto-focus and select after state update
-      if (newSelection.count > 0) {
-        focusAndSelect()
+        // If in batch mode and selection changed, request positions
+        if (modeRef.current === 'batch' && newSelection.count > 0) {
+          parent.postMessage({ pluginMessage: { type: 'getLayerPositions' } }, '*')
+        }
+      } else if (msg.type === 'layerPositions') {
+        setBatchLayers(msg.layers)
       }
     }
 
     window.addEventListener('message', handleMessage)
 
-    // Request initial selection
+    // Request initial selection (only once on mount)
     parent.postMessage({ pluginMessage: { type: 'init' } }, '*')
 
     return () => window.removeEventListener('message', handleMessage)
   }, [focusAndSelect])
 
-  // Focus input on mount
+  // Focus input on mount (quick mode only)
   useEffect(() => {
-    focusAndSelect()
-  }, [focusAndSelect])
-
+    if (mode === 'quick') {
+      focusAndSelect()
+    }
+  }, [focusAndSelect, mode])
 
   // Select text after input value has been rendered (fixes race condition)
   useEffect(() => {
-    if (selection.count > 0 && shouldSelectAllRef.current && inputRef.current) {
+    if (mode === 'quick' && selection.count > 0 && shouldSelectAllRef.current && inputRef.current) {
       // Wait for React to render the new value, then select
       const timer = setTimeout(() => {
         if (inputRef.current) {
@@ -188,7 +124,7 @@ export default function App() {
       }, 0)
       return () => clearTimeout(timer)
     }
-  }, [selection.nodeIds.join(',')])
+  }, [mode, selection.nodeIds.join(',')])
 
   // Animate count when it changes
   useEffect(() => {
@@ -219,9 +155,50 @@ export default function App() {
     return () => clearInterval(interval)
   }, [selection.count])
 
-  // Focus input when clicking anywhere on the plugin
+  // Resize UI based on selection count (quick mode only)
+  useEffect(() => {
+    if (mode === 'quick') {
+      if (selection.count > 1) {
+        parent.postMessage({ pluginMessage: { type: 'resizeUI', width: 280, height: 86 } }, '*')
+      } else {
+        parent.postMessage({ pluginMessage: { type: 'resizeUI', width: 280, height: 52 } }, '*')
+      }
+    }
+  }, [selection.count, mode])
+
+  // Switch to batch mode with animation
+  const handleSwitchToBatch = useCallback(() => {
+    // Request layer positions first
+    parent.postMessage({ pluginMessage: { type: 'getLayerPositions' } }, '*')
+    // Resize then switch mode
+    parent.postMessage({ pluginMessage: { type: 'resizeUI', width: 500, height: 300 } }, '*')
+    setMode('batch')
+  }, [])
+
+  // Switch to quick mode with animation
+  const handleSwitchToQuick = useCallback(() => {
+    setMode('quick')
+    // Resize UI for quick mode
+    parent.postMessage({ pluginMessage: { type: 'resizeUI', width: 280, height: 86 } }, '*')
+  }, [])
+
+  // Handle batch rename apply (stays on batch view)
+  const handleBatchApply = useCallback((renames: Array<{ nodeId: string; newName: string }>) => {
+    parent.postMessage({ pluginMessage: { type: 'batchRename', renames } }, '*')
+  }, [])
+
+  // Handle zoom to selected layers (zooms to fit all selected)
+  const handleZoomToLayer = useCallback(() => {
+    if (selection.nodeIds.length > 0) {
+      parent.postMessage({ pluginMessage: { type: 'zoomToSelection' } }, '*')
+    }
+  }, [selection.nodeIds])
+
+  // Focus input when clicking anywhere on the plugin (quick mode)
   const handleContainerClick = () => {
-    focusAndSelect()
+    if (mode === 'quick') {
+      focusAndSelect()
+    }
   }
 
   // Handle input change
@@ -248,65 +225,57 @@ export default function App() {
     }
   }
 
+  // Helper to send plugin messages
+  const postMessage = (type: string, data?: object) => {
+    parent.postMessage({ pluginMessage: { type, ...data } }, '*')
+  }
+
   // Handle keyboard shortcuts
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Tab') {
       e.preventDefault()
-      // Final rename before switching
-      if (inputValue.length > 0) {
-        parent.postMessage(
-          { pluginMessage: { type: 'rename', name: inputValue } },
-          '*'
-        )
-      }
-      // Select next or previous sibling
-      if (e.shiftKey) {
-        parent.postMessage(
-          { pluginMessage: { type: 'selectPrevious' } },
-          '*'
-        )
-      } else {
-        parent.postMessage(
-          { pluginMessage: { type: 'selectNext' } },
-          '*'
-        )
-      }
+      if (inputValue) postMessage('rename', { name: inputValue })
+      postMessage(e.shiftKey ? 'selectPrevious' : 'selectNext')
     } else if (e.key === 'Enter') {
       e.preventDefault()
-      // Final rename (in case debounce hasn't fired)
-      if (inputValue.length > 0) {
-        parent.postMessage(
-          { pluginMessage: { type: 'rename', name: inputValue } },
-          '*'
-        )
-      }
-      // Enter into frame (select children) - like Figma's native Enter
-      parent.postMessage(
-        { pluginMessage: { type: 'enterFrame' } },
-        '*'
-      )
+      if (inputValue) postMessage('rename', { name: inputValue })
+      postMessage('enterFrame')
     }
   }
 
-  // Always render the input so inputRef is always available
+  // Batch mode
+  if (mode === 'batch') {
+    return (
+      <BatchRename
+        layers={batchLayers}
+        onApply={handleBatchApply}
+        onCancel={handleSwitchToQuick}
+      />
+    )
+  }
+
+  // Quick mode (original UI)
   return (
     <div
-      className="h-full cursor-text flex items-center"
+      className={`h-full cursor-text flex flex-col px-4 mode-transition ${selection.count <= 1 ? 'justify-center py-3' : 'pt-4 pb-2'}`}
       onClick={handleContainerClick}
     >
-      <div className="flex items-center gap-2 px-3 w-full">
+      {/* Input row */}
+      <div className="flex items-center gap-2.5">
         {/* Layer type icon with count badge - only show when selection exists */}
         {selection.count > 0 && (
-          <div className="relative flex-shrink-0">
+          <div
+            className="flex items-center gap-1.5 flex-shrink-0 cursor-pointer hover:opacity-70 transition-opacity"
+            onClick={(e) => {
+              e.stopPropagation()
+              handleZoomToLayer()
+            }}
+            title="Click to zoom to selection"
+          >
             <LayerIcon type={selection.layerType} />
             {selection.count > 1 && (
               <span
-                className={`absolute -top-1.5 -right-2 text-[10px] px-1 min-w-[16px] text-center rounded-full border transition-transform duration-100 ${isAnimating ? 'scale-110' : 'scale-100'}`}
-                style={{
-                  color: 'var(--color-text)',
-                  backgroundColor: 'var(--color-bg-secondary)',
-                  borderColor: 'var(--color-border)',
-                }}
+                className={`layer-count-pill transition-transform duration-100 ${isAnimating ? 'scale-110' : 'scale-100'}`}
               >
                 {displayCount}
               </span>
@@ -322,8 +291,8 @@ export default function App() {
           onKeyDown={handleKeyDown}
           onFocus={handleFocus}
           disabled={selection.count === 0}
-          placeholder={selection.count === 0 ? "Select layer(s) to name" : "Rename"}
-          className={`flex-1 bg-transparent border-none outline-none text-[13px] ${selection.count > 1 ? 'ml-2' : 'ml-0.5'} ${selection.count === 0 ? 'cursor-default' : ''}`}
+          placeholder={selection.count === 0 ? "Select layer(s) to name" : selection.count > 1 ? "Rename selected layers" : "Rename"}
+          className={`flex-1 bg-transparent border-none outline-none text-[13px] ${selection.count === 0 ? 'cursor-default' : ''}`}
           style={{
             color: 'var(--color-text)',
           }}
@@ -334,6 +303,19 @@ export default function App() {
           autoCapitalize="off"
         />
       </div>
+
+      {/* Batch naming button - only show when multiple layers selected */}
+      {selection.count > 1 && (
+        <button
+          className="advanced-btn mt-3"
+          onClick={(e) => {
+            e.stopPropagation()
+            handleSwitchToBatch()
+          }}
+        >
+          Advanced Naming
+        </button>
+      )}
     </div>
   )
 }
