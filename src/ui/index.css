@@ -372,14 +372,25 @@ input::placeholder {
   position: relative;
 }
 
-.add-column-btn-icon {
+/* Left hover zone for adding column before first */
+.add-column-zone-left {
   position: absolute;
-  right: -8px;
+  left: -12px;
+  top: 0;
+  bottom: 0;
+  width: 20px;
+  z-index: 10;
+}
+
+.add-column-btn-left {
+  position: absolute;
+  left: 4px;
   top: 50%;
   transform: translateY(-50%);
   width: 16px;
   height: 16px;
   border-radius: 50%;
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -388,16 +399,14 @@ input::placeholder {
   transition: all 0.15s ease;
   background: var(--figma-color-bg-brand, #18a0fb);
   color: white;
-  z-index: 5;
-  border: none;
 }
 
-.add-column-btn-icon:hover {
-  transform: translateY(-50%) scale(1.15);
-}
-
-.header-icon-cell:hover .add-column-btn-icon {
+.add-column-zone-left:hover .add-column-btn-left {
   opacity: 1;
+}
+
+.add-column-btn-left:hover {
+  transform: translateY(-50%) scale(1.15);
 }
 
 .header-cell-wrapper {
@@ -448,7 +457,7 @@ input::placeholder {
 
 .column-header .delete-btn {
   flex-shrink: 0;
-  width: 20px;
+  width: 0;
   height: 20px;
   border-radius: 4px;
   display: flex;
@@ -460,10 +469,13 @@ input::placeholder {
   background: transparent;
   color: var(--color-icon-secondary);
   margin-left: auto;
-  margin-right: 6px;
+  margin-right: 0;
+  overflow: hidden;
 }
 
 .column-header:hover .delete-btn {
+  width: 20px;
+  margin-right: 6px;
   opacity: 0.7;
 }
 
@@ -513,32 +525,11 @@ input::placeholder {
   opacity: 1;
 }
 
-.add-column-btn-left {
-  position: absolute;
-  left: -8px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
+/* Hide right button when left zone is hovered (first column only) */
+.header-cell-wrapper:has(.add-column-zone-left:hover) .add-column-btn {
   opacity: 0;
-  transition: all 0.15s ease;
-  background: var(--figma-color-bg-brand, #18a0fb);
-  color: white;
-  z-index: 5;
 }
 
-.add-column-btn-left:hover {
-  transform: translateY(-50%) scale(1.15);
-}
-
-.header-cell-wrapper:first-of-type:hover .add-column-btn-left {
-  opacity: 1;
-}
 
 .preview-header {
   background: var(--color-bg-secondary);
@@ -648,22 +639,36 @@ input::placeholder {
 
 .btn-primary,
 .btn-secondary {
-  padding: 6px var(--space-md);
-  border-radius: var(--radius-sm);
+  padding: 0 12px;
+  border-radius: 4px;
   font-size: 11px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s ease;
+  height: 30px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 .btn-primary {
   background: var(--figma-color-bg-brand, #0d99ff);
   color: white;
   border: none;
+  gap: 6px;
+  min-width: 100px;
 }
 
 .btn-primary:hover {
   background: var(--figma-color-bg-brand-hover, #0c8ce9);
+}
+
+.btn-primary.btn-success,
+.btn-primary.btn-success:hover {
+  background-color: #22c55e !important;
+  background: #22c55e !important;
 }
 
 .btn-secondary {
@@ -674,4 +679,22 @@ input::placeholder {
 
 .btn-secondary:hover {
   background: var(--color-bg-secondary);
+}
+
+.shortcut-key {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  color: white;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+}
+
+.batch-count {
+  border-radius: 4px;
 }

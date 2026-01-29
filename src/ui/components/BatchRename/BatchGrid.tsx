@@ -50,8 +50,8 @@ export function BatchGrid({
   const [dragTargetCol, setDragTargetCol] = useState<number | null>(null)
   const [editingCell, setEditingCell] = useState<{ row: number; col: number; mode: 'typing' | 'doubleclick' } | null>(null)
   const [editingHeaderIndex, setEditingHeaderIndex] = useState<number | null>(null)
-  const [clipboard, setClipboard] = useState<string[][] | null>(null)
-  const [isCut, setIsCut] = useState(false)
+  const [_clipboard, setClipboard] = useState<string[][] | null>(null)
+  const [_isCut, setIsCut] = useState(false)
 
   // Refs to track current values for event handlers
   const selectionRef = useRef<Selection | null>(null)
@@ -72,6 +72,62 @@ export function BatchGrid({
     isDraggingFillRef.current = isDraggingFill
     isSelectingRef.current = isSelecting
   }, [selection, dragTargetRow, dragTargetCol, isDraggingFill, isSelecting])
+
+  // Scroll selected cell into view and focus its input when selection changes
+  useEffect(() => {
+    if (!selection || !containerRef.current) return
+
+    const scrollContainer = containerRef.current
+    const targetRow = selection.endRow
+    const targetCol = selection.endCol
+
+    // Use requestAnimationFrame to ensure DOM is ready
+    requestAnimationFrame(() => {
+      if (!containerRef.current) return
+
+      // Find the cell element
+      const cellSelector = `[data-row="${targetRow}"][data-col="${targetCol}"]`
+      const cell = scrollContainer.querySelector(cellSelector) as HTMLElement
+
+      if (cell) {
+        const containerRect = scrollContainer.getBoundingClientRect()
+        const cellRect = cell.getBoundingClientRect()
+        const headerHeight = 36
+
+        // Vertical scroll
+        const lastRow = state.rows.length - 1
+        if (targetRow === 0) {
+          // First row - scroll to absolute top
+          scrollContainer.scrollTo({ top: 0, behavior: 'instant' })
+        } else if (targetRow === lastRow) {
+          // Last row - scroll to absolute bottom
+          scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'instant' })
+        } else if (cellRect.top < containerRect.top + headerHeight) {
+          const offset = (containerRect.top + headerHeight) - cellRect.top + 4
+          scrollContainer.scrollTop = Math.max(0, scrollContainer.scrollTop - offset)
+        } else if (cellRect.bottom > containerRect.bottom) {
+          scrollContainer.scrollTop += cellRect.bottom - containerRect.bottom + 4
+        }
+
+        // Horizontal scroll
+        const iconColWidth = 36
+        if (targetCol === 0) {
+          scrollContainer.scrollLeft = 0
+        } else if (cellRect.left < containerRect.left + iconColWidth) {
+          const offset = (containerRect.left + iconColWidth) - cellRect.left + 4
+          scrollContainer.scrollLeft = Math.max(0, scrollContainer.scrollLeft - offset)
+        } else if (cellRect.right > containerRect.right) {
+          scrollContainer.scrollLeft += cellRect.right - containerRect.right + 4
+        }
+
+        // Focus the input inside the cell
+        const input = cell.querySelector('input') as HTMLInputElement
+        if (input) {
+          input.focus()
+        }
+      }
+    })
+  }, [selection])
 
   // Auto-select first cell and focus container when grid loads
   useEffect(() => {
@@ -190,66 +246,6 @@ export function BatchGrid({
     copySelectedCells()
     setIsCut(true)
   }, [copySelectedCells])
-
-  // Paste from internal or system clipboard
-  const pasteFromClipboard = useCallback((pasteData?: string) => {
-    const sel = getNormalizedSelection(selection)
-    if (!sel) return
-
-    const startRow = sel.startRow
-    const startCol = sel.startCol
-
-    const processPaste = (data: string[][]) => {
-      const fills: { row: number; col: number; value: string }[] = []
-
-      data.forEach((rowData, rowOffset) => {
-        rowData.forEach((cellValue, colOffset) => {
-          const targetRow = startRow + rowOffset
-          const targetCol = startCol + colOffset
-          if (targetRow < state.rows.length && targetCol < state.columns.length) {
-            fills.push({ row: targetRow, col: targetCol, value: cellValue })
-          }
-        })
-      })
-
-      if (fills.length > 0) {
-        onFillCells(fills)
-      }
-
-      // If this was a cut operation, clear the source cells
-      if (isCut && clipboard) {
-        const cutSel = getNormalizedSelection(selectionRef.current)
-        if (cutSel) {
-          const clearFills: { row: number; col: number; value: string }[] = []
-          for (let r = 0; r < clipboard.length; r++) {
-            for (let c = 0; c < clipboard[r].length; c++) {
-              const srcRow = cutSel.startRow + r
-              const srcCol = cutSel.startCol + c
-              // Don't clear if pasting over the same cells
-              if (srcRow < startRow || srcRow >= startRow + clipboard.length ||
-                  srcCol < startCol || srcCol >= startCol + clipboard[0].length) {
-                clearFills.push({ row: srcRow, col: srcCol, value: '' })
-              }
-            }
-          }
-          if (clearFills.length > 0) {
-            onFillCells(clearFills)
-          }
-        }
-        setIsCut(false)
-      }
-    }
-
-    if (pasteData) {
-      // From system clipboard
-      const lines = pasteData.split(/\r?\n/).filter(line => line.length > 0)
-      const data = lines.map(line => line.split('\t'))
-      processPaste(data)
-    } else if (clipboard) {
-      // From internal clipboard
-      processPaste(clipboard)
-    }
-  }, [selection, getNormalizedSelection, state.rows.length, state.columns.length, onFillCells, clipboard, isCut])
 
   // Handle cell mouse down
   const handleCellMouseDown = useCallback((e: React.MouseEvent, row: number, col: number) => {
@@ -561,15 +557,34 @@ export function BatchGrid({
 
     const fills: { row: number; col: number; value: string }[] = []
 
-    data.forEach((rowData, rowOffset) => {
-      rowData.forEach((cellValue, colOffset) => {
-        const targetRow = sel.startRow + rowOffset
-        const targetCol = sel.startCol + colOffset
-        if (targetRow < state.rows.length && targetCol < state.columns.length) {
-          fills.push({ row: targetRow, col: targetCol, value: cellValue.trim() })
+    // Check if pasting single value into multi-cell selection
+    const isSingleValue = data.length === 1 && data[0].length === 1
+    const selectionRows = sel.endRow - sel.startRow + 1
+    const selectionCols = sel.endCol - sel.startCol + 1
+    const isMultiCellSelection = selectionRows > 1 || selectionCols > 1
+
+    if (isSingleValue && isMultiCellSelection) {
+      // Fill ALL selected cells with the single pasted value
+      const value = data[0][0].trim()
+      for (let row = sel.startRow; row <= sel.endRow; row++) {
+        for (let col = sel.startCol; col <= sel.endCol; col++) {
+          if (row < state.rows.length && col < state.columns.length) {
+            fills.push({ row, col, value })
+          }
         }
+      }
+    } else {
+      // Default behavior: paste data starting from top-left of selection
+      data.forEach((rowData, rowOffset) => {
+        rowData.forEach((cellValue, colOffset) => {
+          const targetRow = sel.startRow + rowOffset
+          const targetCol = sel.startCol + colOffset
+          if (targetRow < state.rows.length && targetCol < state.columns.length) {
+            fills.push({ row: targetRow, col: targetCol, value: cellValue.trim() })
+          }
+        })
       })
-    })
+    }
 
     if (fills.length > 0) {
       onFillCells(fills)
@@ -1016,29 +1031,22 @@ export function BatchGrid({
       <div className="batch-grid-inner">
         {/* Header row */}
         <div className="batch-grid-header" style={{ gridTemplateColumns }}>
-          <div className="header-icon-cell">
-            <button
-              className="add-column-btn-icon"
-              onClick={() => onAddColumn(-1)}
-              title="Add column before"
-            >
-              <Plus size={12} weight="bold" />
-            </button>
-          </div>
+          <div className="header-icon-cell" />
           {state.columns.map((col, colIndex) => (
             <div key={col.id} className="header-cell-wrapper">
               {colIndex === 0 && (
-                <button
-                  className="add-column-btn-left"
-                  onClick={() => onAddColumn(-1)}
-                  title="Add column before"
-                >
-                  <Plus size={12} weight="bold" />
-                </button>
+                <div className="add-column-zone-left">
+                  <button
+                    className="add-column-btn-left"
+                    onClick={() => onAddColumn(-1)}
+                    title="Add column before"
+                  >
+                    <Plus size={12} weight="bold" />
+                  </button>
+                </div>
               )}
               <ColumnHeader
                 header={col.header}
-                colIndex={colIndex}
                 canDelete={state.columns.length > 1}
                 onChange={(header) => onColumnHeaderChange(colIndex, header)}
                 onDelete={() => onDeleteColumn(colIndex)}

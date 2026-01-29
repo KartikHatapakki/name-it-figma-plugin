@@ -62,7 +62,7 @@
       }
     }
     const newNode = siblings[newIndex];
-    if (newNode && newNode.type !== "DOCUMENT" && newNode.type !== "PAGE") {
+    if (newNode) {
       figma.currentPage.selection = [newNode];
     }
   }
@@ -164,6 +164,23 @@
     }
   };
   var isZooming = false;
+  var lastZoomTarget = null;
+  async function shakeViewport() {
+    const center = figma.viewport.center;
+    const shakeAmount = 8;
+    const steps = [
+      { x: shakeAmount, y: 0 },
+      { x: -shakeAmount, y: 0 },
+      { x: shakeAmount / 2, y: 0 },
+      { x: -shakeAmount / 2, y: 0 },
+      { x: 0, y: 0 }
+    ];
+    for (const offset of steps) {
+      figma.viewport.center = { x: center.x + offset.x, y: center.y + offset.y };
+      await new Promise((resolve) => setTimeout(resolve, 40));
+    }
+    figma.viewport.center = center;
+  }
   async function zoomToSelection() {
     if (isZooming)
       return;
@@ -188,31 +205,35 @@
         isZooming = false;
         return;
       }
-      const width = maxX - minX;
-      const height = maxY - minY;
-      const targetX = minX + width / 2;
-      const targetY = minY + height / 2;
-      const contextMultiplier = 2;
-      const minVisibleSize = 400;
-      const virtualWidth = Math.max(width * contextMultiplier, minVisibleSize);
-      const virtualHeight = Math.max(height * contextMultiplier, minVisibleSize);
-      const viewportBounds = figma.viewport.bounds;
-      const zoomX = viewportBounds.width / virtualWidth;
-      const zoomY = viewportBounds.height / virtualHeight;
-      const targetZoom = Math.min(zoomX, zoomY, 1);
+      const targetX = (minX + maxX) / 2;
+      const targetY = (minY + maxY) / 2;
+      const currentCenter = figma.viewport.center;
+      const tolerance = 50;
+      const alreadyAtTarget = lastZoomTarget && Math.abs(currentCenter.x - targetX) < tolerance && Math.abs(currentCenter.y - targetY) < tolerance;
+      if (alreadyAtTarget) {
+        await shakeViewport();
+        isZooming = false;
+        return;
+      }
       const startCenter = figma.viewport.center;
       const startZoom = figma.viewport.zoom;
-      const steps = 12;
-      const duration = 25;
+      figma.viewport.scrollAndZoomIntoView(selection);
+      const endCenter = figma.viewport.center;
+      const endZoom = figma.viewport.zoom;
+      figma.viewport.center = startCenter;
+      figma.viewport.zoom = startZoom;
+      const steps = 15;
+      const duration = 20;
       for (let i = 1; i <= steps; i++) {
         const t = easeOutCubic(i / steps);
         figma.viewport.center = {
-          x: startCenter.x + (targetX - startCenter.x) * t,
-          y: startCenter.y + (targetY - startCenter.y) * t
+          x: startCenter.x + (endCenter.x - startCenter.x) * t,
+          y: startCenter.y + (endCenter.y - startCenter.y) * t
         };
-        figma.viewport.zoom = startZoom + (targetZoom - startZoom) * t;
+        figma.viewport.zoom = startZoom + (endZoom - startZoom) * t;
         await new Promise((resolve) => setTimeout(resolve, duration));
       }
+      lastZoomTarget = { x: targetX, y: targetY };
     } finally {
       isZooming = false;
     }

@@ -78,6 +78,7 @@ export function DirectionPicker({ direction, onChange }: DirectionPickerProps) {
           <button
             key={dir}
             onClick={() => handleClick(dir)}
+            onMouseDown={(e) => e.preventDefault()}
             className={`direction-btn ${direction === dir ? 'active' : ''}`}
             title={label}
             type="button"

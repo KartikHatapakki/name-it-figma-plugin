@@ -2,6 +2,7 @@ import { useState, useCallback, useRef } from 'react'
 import { BatchGridState, ColumnDef, LayerInfo, SortDirection } from '../types/batch'
 import { sortLayersByDirection } from '../utils/sorting'
 import { parseLayerName, getMaxColumns, padParts } from '../utils/nameParser'
+import { getColumnName } from '../utils/columnNames'
 
 let columnIdCounter = 0
 function generateColumnId() {
@@ -43,7 +44,7 @@ const MAX_HISTORY = 50
 
 export function useBatchRename(): UseBatchRenameReturn {
   const [state, setState] = useState<BatchGridState>({
-    columns: [{ id: generateColumnId(), header: 'Part 1' }],
+    columns: [{ id: generateColumnId(), header: getColumnName(0) }],
     rows: [],
     layerIds: [],
     layerTypes: [],
@@ -94,7 +95,7 @@ export function useBatchRename(): UseBatchRenameReturn {
     for (let i = 0; i < totalColumns; i++) {
       columns.push({
         id: generateColumnId(),
-        header: i < columnCount ? `Part ${i + 1}` : '',
+        header: getColumnName(i),
       })
     }
 
@@ -135,7 +136,7 @@ export function useBatchRename(): UseBatchRenameReturn {
       const newColumns = [...prev.columns]
       newColumns.splice(afterIndex + 1, 0, {
         id: generateColumnId(),
-        header: `Part ${newColumns.length + 1}`,
+        header: getColumnName(newColumns.length),
       })
 
       const newRows = prev.rows.map(row => {

@@ -90,8 +90,8 @@ function selectSibling(direction: 'next' | 'previous') {
   }
 
   const newNode = siblings[newIndex]
-  if (newNode && newNode.type !== 'DOCUMENT' && newNode.type !== 'PAGE') {
-    figma.currentPage.selection = [newNode as SceneNode]
+  if (newNode) {
+    figma.currentPage.selection = [newNode]
   }
 }
 
@@ -223,6 +223,26 @@ figma.ui.onmessage = (msg: PluginMessage) => {
 
 // Track zoom state
 let isZooming = false
+let lastZoomTarget: { x: number; y: number } | null = null
+
+// Subtle shake effect when already at target
+async function shakeViewport() {
+  const center = figma.viewport.center
+  const shakeAmount = 8
+  const steps = [
+    { x: shakeAmount, y: 0 },
+    { x: -shakeAmount, y: 0 },
+    { x: shakeAmount / 2, y: 0 },
+    { x: -shakeAmount / 2, y: 0 },
+    { x: 0, y: 0 }
+  ]
+
+  for (const offset of steps) {
+    figma.viewport.center = { x: center.x + offset.x, y: center.y + offset.y }
+    await new Promise(resolve => setTimeout(resolve, 40))
+  }
+  figma.viewport.center = center
+}
 
 // Zoom to fit all selected layers
 async function zoomToSelection() {
@@ -236,9 +256,8 @@ async function zoomToSelection() {
       return
     }
 
-    // Calculate bounding box of all selected nodes
+    // Calculate center of selection for shake detection
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
-
     for (const node of selection) {
       if (node.absoluteBoundingBox) {
         const bounds = node.absoluteBoundingBox
@@ -254,37 +273,53 @@ async function zoomToSelection() {
       return
     }
 
-    const width = maxX - minX
-    const height = maxY - minY
-    const targetX = minX + width / 2
-    const targetY = minY + height / 2
+    const targetX = (minX + maxX) / 2
+    const targetY = (minY + maxY) / 2
 
-    // Calculate zoom with context
-    const contextMultiplier = 2
-    const minVisibleSize = 400
-    const virtualWidth = Math.max(width * contextMultiplier, minVisibleSize)
-    const virtualHeight = Math.max(height * contextMultiplier, minVisibleSize)
+    // Check if already at target
+    const currentCenter = figma.viewport.center
+    const tolerance = 50
+    const alreadyAtTarget = lastZoomTarget &&
+      Math.abs(currentCenter.x - targetX) < tolerance &&
+      Math.abs(currentCenter.y - targetY) < tolerance
 
-    const viewportBounds = figma.viewport.bounds
-    const zoomX = viewportBounds.width / virtualWidth
-    const zoomY = viewportBounds.height / virtualHeight
-    const targetZoom = Math.min(zoomX, zoomY, 1)
+    if (alreadyAtTarget) {
+      await shakeViewport()
+      isZooming = false
+      return
+    }
 
-    // Animate
+    // Save current viewport state
     const startCenter = figma.viewport.center
     const startZoom = figma.viewport.zoom
-    const steps = 12
-    const duration = 25
+
+    // Use Figma's scrollAndZoomIntoView to get target state
+    figma.viewport.scrollAndZoomIntoView(selection)
+
+    // Capture target state
+    const endCenter = figma.viewport.center
+    const endZoom = figma.viewport.zoom
+
+    // Restore start state
+    figma.viewport.center = startCenter
+    figma.viewport.zoom = startZoom
+
+    // Animate to target
+    const steps = 15
+    const duration = 20
 
     for (let i = 1; i <= steps; i++) {
       const t = easeOutCubic(i / steps)
       figma.viewport.center = {
-        x: startCenter.x + (targetX - startCenter.x) * t,
-        y: startCenter.y + (targetY - startCenter.y) * t
+        x: startCenter.x + (endCenter.x - startCenter.x) * t,
+        y: startCenter.y + (endCenter.y - startCenter.y) * t
       }
-      figma.viewport.zoom = startZoom + (targetZoom - startZoom) * t
+      figma.viewport.zoom = startZoom + (endZoom - startZoom) * t
       await new Promise(resolve => setTimeout(resolve, duration))
     }
+
+    // Remember where we zoomed to
+    lastZoomTarget = { x: targetX, y: targetY }
   } finally {
     isZooming = false
   }

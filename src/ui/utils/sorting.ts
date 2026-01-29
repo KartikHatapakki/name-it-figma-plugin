@@ -10,7 +10,7 @@ export function sortLayersByDirection(
   const getThreshold = () => {
     if (layers.length < 2) return 20
     // Use average layer height/width as threshold
-    const avgHeight = layers.reduce((sum, l) => sum + 50, 0) / layers.length // Assume ~50px average
+    const avgHeight = layers.reduce((sum, _) => sum + 50, 0) / layers.length // Assume ~50px average
     return Math.max(20, avgHeight * 0.5)
   }
 

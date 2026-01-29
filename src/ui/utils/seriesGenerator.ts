@@ -1,4 +1,4 @@
-import { SeriesType, SeriesInfo } from '../types/batch'
+import { SeriesInfo } from '../types/batch'
 
 // Detect series from selected values
 export function detectSeries(values: string[]): SeriesInfo {
@@ -59,7 +59,7 @@ function tryMixedSeries(values: string[]): SeriesInfo | null {
   if (!samePrefixSuffix) return null
 
   // Calculate steps between numbers
-  const steps = []
+  const steps: number[] = []
   for (let i = 1; i < validParsed.length; i++) {
     steps.push(validParsed[i].num - validParsed[i - 1].num)
   }
@@ -90,7 +90,7 @@ function tryNumericSeries(values: string[]): SeriesInfo | null {
   const validNums = nums as Array<{ num: number; padded: string }>
 
   // Calculate steps
-  const steps = []
+  const steps: number[] = []
   for (let i = 1; i < validNums.length; i++) {
     steps.push(validNums[i].num - validNums[i - 1].num)
   }
@@ -114,7 +114,7 @@ function tryAlphabeticSeries(values: string[]): SeriesInfo | null {
   const codes = values.map(v => v.charCodeAt(0))
 
   // Check sequential
-  const steps = []
+  const steps: number[] = []
   for (let i = 1; i < codes.length; i++) {
     steps.push(codes[i] - codes[i - 1])
   }

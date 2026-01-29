@@ -12,6 +12,7 @@ interface BatchRenameProps {
 
 export function BatchRename({ layers, onApply, onCancel }: BatchRenameProps) {
   const [autoZoom, setAutoZoom] = useState(false)
+  const [showSuccess, setShowSuccess] = useState(false)
 
   const {
     state,
@@ -19,7 +20,6 @@ export function BatchRename({ layers, onApply, onCancel }: BatchRenameProps) {
     setColumnHeader,
     addColumn,
     deleteColumn,
-    setSortDirection,
     reorderByDirection,
     fillCells,
     undo,
@@ -45,7 +45,21 @@ export function BatchRename({ layers, onApply, onCancel }: BatchRenameProps) {
   const handleApply = useCallback(() => {
     const renames = getRenames()
     onApply(renames)
+    setShowSuccess(true)
+    setTimeout(() => setShowSuccess(false), 1500)
   }, [getRenames, onApply])
+
+  // Keyboard shortcut: Cmd/Ctrl + Enter to apply
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
+        e.preventDefault()
+        handleApply()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleApply])
 
   const handleZoomToLayer = useCallback((nodeId: string) => {
     parent.postMessage({ pluginMessage: { type: 'zoomToLayer', nodeId } }, '*')
@@ -91,7 +105,7 @@ export function BatchRename({ layers, onApply, onCancel }: BatchRenameProps) {
           onChange={handleDirectionChange}
         />
         <div className="batch-toolbar-right">
-          <label className="track-toggle">
+          <label className="track-toggle" onMouseDown={(e) => e.preventDefault()}>
             <span>Track</span>
             <div className={`toggle-switch ${autoZoom ? 'active' : ''}`} onClick={() => setAutoZoom(!autoZoom)}>
               <div className="toggle-knob" />
@@ -122,8 +136,8 @@ export function BatchRename({ layers, onApply, onCancel }: BatchRenameProps) {
         <button className="btn-secondary" onClick={onCancel}>
           Back
         </button>
-        <button className="btn-primary" onClick={handleApply}>
-          Rename All
+        <button className={`btn-primary ${showSuccess ? 'btn-success' : ''}`} onClick={handleApply}>
+          {showSuccess ? 'Applied ✓' : <><span>Apply</span><span className="shortcut-key"><span>{navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}</span><span>↵</span></span></>}
         </button>
       </div>
     </div>

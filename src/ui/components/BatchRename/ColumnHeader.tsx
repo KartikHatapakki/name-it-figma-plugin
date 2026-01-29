@@ -3,7 +3,6 @@ import { X } from '@phosphor-icons/react'
 
 interface ColumnHeaderProps {
   header: string
-  colIndex: number
   canDelete: boolean
   onChange: (header: string) => void
   onDelete: () => void
@@ -15,7 +14,6 @@ interface ColumnHeaderProps {
 
 export function ColumnHeader({
   header,
-  colIndex,
   canDelete,
   onChange,
   onDelete,
