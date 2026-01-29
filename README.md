@@ -5,102 +5,54 @@
 <h1 align="center">Name It</h1>
 
 <p align="center">
-  <strong>The fastest way to rename layers in Figma.</strong><br>
-  No double-clicks. No dialogs. Just type.
+The fastest way to rename layers in Figma.<br>
+No double-clicks. No dialogs. Just type.
 </p>
 
-<p align="center">
-  <a href="#quick-mode">Quick Mode</a> •
-  <a href="#advanced-mode">Advanced Mode</a> •
-  <a href="#installation">Installation</a>
-</p>
-
----
+<br>
 
 ## Quick Mode
 
-Rename layers instantly. Select, type, done.
+Select any layer and start typing. The name updates instantly as you type, no save button needed. Works with multiple layers too.
 
-- **Live Preview** — Changes appear as you type
-- **Multi-select** — Rename many layers at once
-- **Smart Icons** — See what you're renaming at a glance
-- **Tab Navigation** — Move between layers without lifting your hands
-- **Click to Zoom** — Tap the icon to find your layer
+Press Tab to jump to the next sibling layer, or Shift Tab to go back. Press Enter to dive into a frame and select its children. Click the layer icon to zoom straight to your selection.
 
----
+<br>
 
 ## Advanced Mode
 
-Batch rename with precision. An Excel-like grid for your layers.
+When you need to rename many layers at once, switch to Advanced Mode. Your layers appear in a spreadsheet-style grid where each column becomes part of the final name.
+
+<br>
 
 <p align="center">
   <img src="assets/advanced-naming.png" alt="Advanced Naming" width="720">
 </p>
 
-- **Structured Naming** — Split names into columns, combine them your way
-- **Smart Parsing** — Automatically detects separators and patterns
-- **Direction Sorting** — Rename by reading order or spatial position
-- **Drag to Fill** — Create sequences instantly (1, 2, 3… or A, B, C…)
-- **Live Preview** — See final names before applying
-- **Track Mode** — Auto-zoom to each layer as you navigate
+<br>
+
+The plugin automatically parses your existing layer names, splitting them by separators like underscores, hyphens, and camelCase. Choose how layers are sorted with the direction picker, either by reading order or spatial position.
+
+<br>
 
 <p align="center">
   <img src="assets/drag-to-fill.png" alt="Drag to Fill" width="720">
 </p>
 
----
+<br>
 
-## Keyboard Shortcuts
+Select cells and drag the corner handle to fill a sequence. Numbers continue as 1, 2, 3. Letters continue as A, B, C. The preview column shows exactly what each layer will be named before you apply.
 
-### Quick Mode
+Turn on Track mode to automatically zoom to each layer as you navigate through the grid.
 
-| Key | Action |
-|:--|:--|
-| `Tab` | Next layer |
-| `Shift + Tab` | Previous layer |
-| `Enter` | Enter frame |
-
-### Advanced Mode
-
-| Key | Action |
-|:--|:--|
-| `Tab` / `Enter` | Navigate cells |
-| `Arrow Keys` | Move selection |
-| `Shift + Arrow` | Extend selection |
-| `⌘ + C/V/X` | Copy, paste, cut |
-| `⌘ + Z` | Undo |
-| `⌘ + Shift + Z` | Redo |
-
----
+<br>
 
 ## Installation
 
-**From Figma Community**
+Search for Name It in the Figma Community plugins, or clone this repository and run npm install followed by npm run build. Then import the manifest.json file through Figma's plugin development menu.
 
-Search for "Name It" in Figma plugins.
-
-**Manual Installation**
-
-```bash
-git clone https://github.com/KartikHatapakki/name-it-figma-plugin.git
-cd name-it-figma-plugin
-npm install && npm run build
-```
-
-Then import `manifest.json` in Figma → Plugins → Development.
-
----
-
-## Development
-
-```bash
-npm install       # Install dependencies
-npm run build     # Build for production
-npm run dev       # Watch mode
-```
-
----
+<br>
 
 <p align="center">
-  <sub>Built with React, TypeScript, and Tailwind CSS</sub>
+github.com/KartikHatapakki/name-it-figma-plugin
 </p>
