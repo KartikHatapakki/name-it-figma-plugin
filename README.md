@@ -2,6 +2,10 @@
 
 A minimal Figma plugin for lightning-fast layer renaming. Skip the double-click and rename layers instantly.
 
+<p align="center">
+  <img src="assets/quick-rename.png" alt="Quick Rename" width="600">
+</p>
+
 ## Features
 
 ### Quick Mode
@@ -12,6 +16,11 @@ A minimal Figma plugin for lightning-fast layer renaming. Skip the double-click 
 - **Zoom to Selection** - Click the layer icon to zoom to your selected layers
 
 ### Advanced Batch Mode
+
+<p align="center">
+  <img src="assets/advanced-naming.png" alt="Advanced Naming" width="600">
+</p>
+
 - **Excel-like Grid** - Rename multiple layers with an intuitive spreadsheet interface
 - **Smart Name Parsing** - Automatically splits names by separators (_, -, /), camelCase, and numbers
 - **Direction Sorting** - Sort layers by reading order (Z) or reverse (N) pattern
@@ -20,6 +29,10 @@ A minimal Figma plugin for lightning-fast layer renaming. Skip the double-click 
 - **Live Preview** - See the final combined name before applying
 - **Track Mode** - Toggle to auto-zoom to each layer as you select rows in the grid
 - **Undo/Redo** - Full support for Cmd+Z and Cmd+Shift+Z
+
+<p align="center">
+  <img src="assets/drag-to-fill.png" alt="Drag to Fill" width="600">
+</p>
 
 ## Keyboard Shortcuts
 
