@@ -50,7 +50,7 @@ function getLayerType(node: SceneNode): LayerType {
 }
 
 interface PluginMessage {
-  type: 'rename' | 'cancel' | 'close' | 'init' | 'selectNext' | 'selectPrevious' | 'enterFrame' | 'getLayerPositions' | 'batchRename' | 'resizeUI' | 'zoomToLayer' | 'zoomToSelection'
+  type: 'rename' | 'cancel' | 'close' | 'init' | 'selectNext' | 'selectPrevious' | 'enterFrame' | 'getLayerPositions' | 'batchRename' | 'resizeUI' | 'zoomToLayer' | 'zoomToSelection' | 'highlightLayer' | 'removeHighlight'
   name?: string
   originalNames?: string[]
   renames?: Array<{ nodeId: string; newName: string }>
@@ -140,6 +140,9 @@ function sendSelectionToUI() {
 // Initial send
 sendSelectionToUI()
 
+// Clean up any stale highlights from previous sessions
+cleanupStaleHighlights()
+
 // Listen for selection changes
 figma.on('selectionchange', () => {
   sendSelectionToUI()
@@ -170,10 +173,14 @@ figma.ui.onmessage = (msg: PluginMessage) => {
           }
         })
       }
+      // Clean up highlight synchronously before closing
+      removeHighlightSync()
       figma.closePlugin()
       break
 
     case 'close':
+      // Clean up highlight synchronously before closing
+      removeHighlightSync()
       figma.closePlugin()
       break
 
@@ -218,12 +225,141 @@ figma.ui.onmessage = (msg: PluginMessage) => {
     case 'zoomToSelection':
       zoomToSelection()
       break
+
+    case 'highlightLayer':
+      if (msg.nodeId) {
+        showLayerHighlight(msg.nodeId)
+      }
+      break
+
+    case 'removeHighlight':
+      removeHighlightSync()
+      break
   }
 }
 
 // Track zoom state
 let isZooming = false
 let lastZoomTarget: { x: number; y: number } | null = null
+
+// Highlight feature constant
+const HIGHLIGHT_NODE_NAME = '__name-it-highlight__'
+
+// Remove highlight - multiple methods for reliability
+function removeAllHighlights() {
+  // Method 1: Use stored node ID
+  try {
+    const storedId = figma.root.getPluginData('highlightNodeId')
+    if (storedId && storedId.length > 0) {
+      const node = figma.getNodeById(storedId)
+      if (node) node.remove()
+      figma.root.setPluginData('highlightNodeId', '')
+    }
+  } catch (_) {}
+
+  // Method 2: Directly iterate current page children (most reliable)
+  try {
+    const toRemove: SceneNode[] = []
+    for (const child of figma.currentPage.children) {
+      if (child.name === HIGHLIGHT_NODE_NAME || child.name.includes('name-it-highlight')) {
+        toRemove.push(child)
+      }
+    }
+    for (const node of toRemove) {
+      try { node.remove() } catch (_) {}
+    }
+  } catch (_) {}
+
+  // Method 3: Use findAll on current page (recursive search)
+  try {
+    const highlights = figma.currentPage.findAll(node =>
+      node.name === HIGHLIGHT_NODE_NAME || node.name.includes('name-it-highlight')
+    )
+    for (const node of highlights) {
+      try { node.remove() } catch (_) {}
+    }
+  } catch (_) {}
+
+  // Method 4: Check all pages
+  for (const page of figma.root.children) {
+    if (page.type === 'PAGE') {
+      try {
+        // Direct children
+        const toRemove: SceneNode[] = []
+        for (const child of page.children) {
+          if (child.name === HIGHLIGHT_NODE_NAME || child.name.includes('name-it-highlight')) {
+            toRemove.push(child)
+          }
+        }
+        for (const node of toRemove) {
+          try { node.remove() } catch (_) {}
+        }
+        // Also recursive search
+        const pageHighlights = page.findAll(node =>
+          node.name === HIGHLIGHT_NODE_NAME || node.name.includes('name-it-highlight')
+        )
+        for (const node of pageHighlights) {
+          try { node.remove() } catch (_) {}
+        }
+      } catch (_) {}
+    }
+  }
+}
+
+// Cleanup on init - silently removes any stale highlights
+function cleanupStaleHighlights() {
+  removeAllHighlights()
+}
+
+// Alias for sync removal
+function removeHighlightSync() {
+  removeAllHighlights()
+}
+
+// Create highlight around a layer (removes existing first)
+async function showLayerHighlight(nodeId: string) {
+  // Always remove existing highlights first
+  removeAllHighlights()
+
+  try {
+    const node = await figma.getNodeByIdAsync(nodeId)
+    if (!node || !('absoluteBoundingBox' in node)) return
+
+    const sceneNode = node as SceneNode
+    const bounds = sceneNode.absoluteBoundingBox
+    if (!bounds) return
+
+    // Calculate zoom-adjusted values
+    const zoom = figma.viewport.zoom
+    const baseStrokeWeight = 4
+    const basePadding = 8
+    const baseCornerRadius = 4
+    const scale = Math.max(0.5, Math.min(8, 1 / zoom))
+    const strokeWeight = baseStrokeWeight * scale
+    const padding = basePadding * scale
+    const cornerRadius = baseCornerRadius * scale
+
+    // Create highlight at PAGE ROOT level (not inside any frame)
+    const highlight = figma.createRectangle()
+    figma.currentPage.appendChild(highlight)  // Explicitly add to page root
+
+    highlight.name = HIGHLIGHT_NODE_NAME
+    highlight.fills = []
+    highlight.strokes = [{ type: 'SOLID', color: { r: 0.13, g: 0.77, b: 0.37 } }]
+    highlight.strokeWeight = strokeWeight
+    highlight.strokeAlign = 'OUTSIDE'
+    highlight.cornerRadius = cornerRadius
+    highlight.x = bounds.x - padding
+    highlight.y = bounds.y - padding
+    highlight.resize(bounds.width + padding * 2, bounds.height + padding * 2)
+
+    // Store the highlight ID for reliable cleanup later
+    figma.root.setPluginData('highlightNodeId', highlight.id)
+  } catch (_) {
+    removeAllHighlights()
+  }
+}
+
 
 // Subtle shake effect when already at target
 async function shakeViewport() {
@@ -325,7 +461,7 @@ async function zoomToSelection() {
   }
 }
 
-// Smooth zoom to a specific layer with context
+// Smooth zoom to a specific layer - fits entire layer in viewport
 async function zoomToLayer(nodeId: string) {
   // Prevent double-triggering while animating
   if (isZooming) return
@@ -345,24 +481,21 @@ async function zoomToLayer(nodeId: string) {
       return
     }
 
-    // Target center
-    const targetX = bounds.x + bounds.width / 2
-    const targetY = bounds.y + bounds.height / 2
-
-    // Calculate target zoom - consistent level regardless of layer size
-    const minVisibleSize = 800
-    const virtualWidth = Math.max(bounds.width * 3, minVisibleSize)
-    const virtualHeight = Math.max(bounds.height * 3, minVisibleSize)
-
-    const viewportBounds = figma.viewport.bounds
-    const zoomX = viewportBounds.width / virtualWidth
-    const zoomY = viewportBounds.height / virtualHeight
-    // Clamp zoom between 0.15 (don't zoom out too far) and 0.5 (don't zoom in too much)
-    const targetZoom = Math.max(0.15, Math.min(zoomX, zoomY, 0.5))
-
-    // Current viewport state
+    // Save current viewport state
     const startCenter = figma.viewport.center
     const startZoom = figma.viewport.zoom
+
+    // Use Figma's scrollAndZoomIntoView to calculate optimal zoom that fits the layer
+    figma.viewport.scrollAndZoomIntoView([sceneNode])
+
+    // Capture the target state (this fits the layer properly)
+    const endCenter = figma.viewport.center
+    // Zoom out a bit more (60% of Figma's calculated zoom) for breathing room
+    const endZoom = figma.viewport.zoom * 0.6
+
+    // Restore start state for animation
+    figma.viewport.center = startCenter
+    figma.viewport.zoom = startZoom
 
     // Animate over ~300ms (12 steps)
     const steps = 12
@@ -371,9 +504,9 @@ async function zoomToLayer(nodeId: string) {
     for (let i = 1; i <= steps; i++) {
       const t = easeOutCubic(i / steps)
 
-      const newX = startCenter.x + (targetX - startCenter.x) * t
-      const newY = startCenter.y + (targetY - startCenter.y) * t
-      const newZoom = startZoom + (targetZoom - startZoom) * t
+      const newX = startCenter.x + (endCenter.x - startCenter.x) * t
+      const newY = startCenter.y + (endCenter.y - startCenter.y) * t
+      const newZoom = startZoom + (endZoom - startZoom) * t
 
       figma.viewport.center = { x: newX, y: newY }
       figma.viewport.zoom = newZoom

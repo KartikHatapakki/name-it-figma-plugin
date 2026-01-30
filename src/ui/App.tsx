@@ -105,6 +105,26 @@ export default function App() {
     return () => window.removeEventListener('message', handleMessage)
   }, [focusAndSelect])
 
+  // Cleanup highlight when plugin window closes (multiple events for reliability)
+  useEffect(() => {
+    const cleanup = () => {
+      parent.postMessage({ pluginMessage: { type: 'removeHighlight' } }, '*')
+    }
+
+    // Try multiple events - one should fire when plugin closes
+    window.addEventListener('beforeunload', cleanup)
+    window.addEventListener('unload', cleanup)
+    window.addEventListener('pagehide', cleanup)
+
+    // Also cleanup on component unmount
+    return () => {
+      cleanup()
+      window.removeEventListener('beforeunload', cleanup)
+      window.removeEventListener('unload', cleanup)
+      window.removeEventListener('pagehide', cleanup)
+    }
+  }, [])
+
   // Focus input on mount (quick mode only)
   useEffect(() => {
     if (mode === 'quick') {
@@ -177,6 +197,8 @@ export default function App() {
 
   // Switch to quick mode with animation
   const handleSwitchToQuick = useCallback(() => {
+    // Remove highlight when leaving batch mode
+    parent.postMessage({ pluginMessage: { type: 'removeHighlight' } }, '*')
     setMode('quick')
     // Resize UI for quick mode
     parent.postMessage({ pluginMessage: { type: 'resizeUI', width: 280, height: 86 } }, '*')

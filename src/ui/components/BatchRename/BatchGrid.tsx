@@ -959,7 +959,7 @@ export function BatchGrid({
     }
   }, [state.columns.length, state.rows.length, editingCell, clearSelectedCells])
 
-  const gridTemplateColumns = `32px repeat(${state.columns.length}, minmax(80px, 1fr)) 200px`
+  const gridTemplateColumns = `32px repeat(${state.columns.length}, minmax(70px, 1fr)) 100px`
 
   // Check if a cell is the primary selected cell (shows drag handle)
   const isPrimarySelected = useCallback((row: number, col: number) => {

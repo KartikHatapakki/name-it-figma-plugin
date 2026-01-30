@@ -34,8 +34,17 @@ export function BatchRename({ layers, onApply, onCancel }: BatchRenameProps) {
   useEffect(() => {
     if (layers.length > 0) {
       initializeFromLayers(layers, 'reading-order')
+      // Highlight the first layer when entering Advanced mode
+      parent.postMessage({ pluginMessage: { type: 'highlightLayer', nodeId: layers[0].id } }, '*')
     }
   }, [layers])
+
+  // Cleanup highlight when component unmounts (leaving Advanced mode)
+  useEffect(() => {
+    return () => {
+      parent.postMessage({ pluginMessage: { type: 'removeHighlight' } }, '*')
+    }
+  }, [])
 
   // Reorder rows when direction changes (preserves edits)
   const handleDirectionChange = useCallback((direction: SortDirection) => {
@@ -45,6 +54,8 @@ export function BatchRename({ layers, onApply, onCancel }: BatchRenameProps) {
   const handleApply = useCallback(() => {
     const renames = getRenames()
     onApply(renames)
+    // Remove highlight after applying
+    parent.postMessage({ pluginMessage: { type: 'removeHighlight' } }, '*')
     setShowSuccess(true)
     setTimeout(() => setShowSuccess(false), 1500)
   }, [getRenames, onApply])
@@ -66,8 +77,15 @@ export function BatchRename({ layers, onApply, onCancel }: BatchRenameProps) {
   }, [])
 
   const handleRowSelect = useCallback((rowIndex: number) => {
-    if (autoZoom && state.layerIds[rowIndex]) {
-      parent.postMessage({ pluginMessage: { type: 'zoomToLayer', nodeId: state.layerIds[rowIndex] } }, '*')
+    const nodeId = state.layerIds[rowIndex]
+    if (nodeId) {
+      // Always highlight the focused layer in Advanced mode
+      parent.postMessage({ pluginMessage: { type: 'highlightLayer', nodeId } }, '*')
+
+      // Only zoom if Track mode is enabled
+      if (autoZoom) {
+        parent.postMessage({ pluginMessage: { type: 'zoomToLayer', nodeId } }, '*')
+      }
     }
   }, [autoZoom, state.layerIds])
 
@@ -78,10 +96,22 @@ export function BatchRename({ layers, onApply, onCancel }: BatchRenameProps) {
     const colCount = state.columns.length
     const rowCount = state.rows.length
 
-    // Width: icon col (32) + data cols + preview col (200) + padding + buffer
-    const width = Math.min(800, Math.max(380, 32 + colCount * 100 + 200 + 24 + 20))
-    // Height: toolbar (36) + header (33) + rows + actions (44) + padding (32) + buffer
-    const height = Math.min(500, Math.max(180, 36 + 33 + rowCount * 33 + 44 + 32))
+    // Width calculation - consistent for all, with horizontal scroll when needed
+    const calculatedWidth = 32 + colCount * 70 + 100 + 24 + 20
+    const width = Math.min(450, Math.max(400, calculatedWidth))
+    // Height breakdown:
+    // - Container padding: 24px (12 top + 12 bottom)
+    // - Toolbar: 40px
+    // - Gap after toolbar: 8px
+    // - Grid border: 2px (1 top + 1 bottom)
+    // - Grid header: 40px
+    // - Grid rows: rowCount * 40px (preview-cell line-height 32px + padding 8px)
+    // - Grid row gaps: (rowCount - 1) * 1px if rowCount > 1
+    // - Gap after grid: 8px
+    // - Actions: 32px
+    const rowGaps = rowCount > 1 ? (rowCount - 1) : 0
+    const calculatedHeight = 24 + 40 + 8 + 2 + 40 + (rowCount * 40) + rowGaps + 8 + 32
+    const height = Math.min(500, Math.max(200, calculatedHeight))
 
     parent.postMessage(
       { pluginMessage: { type: 'resizeUI', width, height } },

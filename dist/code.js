@@ -100,6 +100,7 @@
     });
   }
   sendSelectionToUI();
+  cleanupStaleHighlights();
   figma.on("selectionchange", () => {
     sendSelectionToUI();
   });
@@ -123,9 +124,11 @@
             }
           });
         }
+        removeHighlightSync();
         figma.closePlugin();
         break;
       case "close":
+        removeHighlightSync();
         figma.closePlugin();
         break;
       case "init":
@@ -161,10 +164,126 @@
       case "zoomToSelection":
         zoomToSelection();
         break;
+      case "highlightLayer":
+        if (msg.nodeId) {
+          showLayerHighlight(msg.nodeId);
+        }
+        break;
+      case "removeHighlight":
+        removeHighlightSync();
+        break;
     }
   };
   var isZooming = false;
   var lastZoomTarget = null;
+  var HIGHLIGHT_NODE_NAME = "__name-it-highlight__";
+  function removeAllHighlights() {
+    try {
+      const storedId = figma.root.getPluginData("highlightNodeId");
+      if (storedId && storedId.length > 0) {
+        const node = figma.getNodeById(storedId);
+        if (node)
+          node.remove();
+        figma.root.setPluginData("highlightNodeId", "");
+      }
+    } catch (_) {
+    }
+    try {
+      const toRemove = [];
+      for (const child of figma.currentPage.children) {
+        if (child.name === HIGHLIGHT_NODE_NAME || child.name.includes("name-it-highlight")) {
+          toRemove.push(child);
+        }
+      }
+      for (const node of toRemove) {
+        try {
+          node.remove();
+        } catch (_) {
+        }
+      }
+    } catch (_) {
+    }
+    try {
+      const highlights = figma.currentPage.findAll(
+        (node) => node.name === HIGHLIGHT_NODE_NAME || node.name.includes("name-it-highlight")
+      );
+      for (const node of highlights) {
+        try {
+          node.remove();
+        } catch (_) {
+        }
+      }
+    } catch (_) {
+    }
+    for (const page of figma.root.children) {
+      if (page.type === "PAGE") {
+        try {
+          const toRemove = [];
+          for (const child of page.children) {
+            if (child.name === HIGHLIGHT_NODE_NAME || child.name.includes("name-it-highlight")) {
+              toRemove.push(child);
+            }
+          }
+          for (const node of toRemove) {
+            try {
+              node.remove();
+            } catch (_) {
+            }
+          }
+          const pageHighlights = page.findAll(
+            (node) => node.name === HIGHLIGHT_NODE_NAME || node.name.includes("name-it-highlight")
+          );
+          for (const node of pageHighlights) {
+            try {
+              node.remove();
+            } catch (_) {
+            }
+          }
+        } catch (_) {
+        }
+      }
+    }
+  }
+  function cleanupStaleHighlights() {
+    removeAllHighlights();
+  }
+  function removeHighlightSync() {
+    removeAllHighlights();
+  }
+  async function showLayerHighlight(nodeId) {
+    removeAllHighlights();
+    try {
+      const node = await figma.getNodeByIdAsync(nodeId);
+      if (!node || !("absoluteBoundingBox" in node))
+        return;
+      const sceneNode = node;
+      const bounds = sceneNode.absoluteBoundingBox;
+      if (!bounds)
+        return;
+      const zoom = figma.viewport.zoom;
+      const baseStrokeWeight = 4;
+      const basePadding = 8;
+      const baseCornerRadius = 4;
+      const scale = Math.max(0.5, Math.min(8, 1 / zoom));
+      const strokeWeight = baseStrokeWeight * scale;
+      const padding = basePadding * scale;
+      const cornerRadius = baseCornerRadius * scale;
+      const highlight = figma.createRectangle();
+      figma.currentPage.appendChild(highlight);
+      highlight.name = HIGHLIGHT_NODE_NAME;
+      highlight.fills = [];
+      highlight.strokes = [{ type: "SOLID", color: { r: 0.13, g: 0.77, b: 0.37 } }];
+      highlight.strokeWeight = strokeWeight;
+      highlight.strokeAlign = "OUTSIDE";
+      highlight.cornerRadius = cornerRadius;
+      highlight.x = bounds.x - padding;
+      highlight.y = bounds.y - padding;
+      highlight.resize(bounds.width + padding * 2, bounds.height + padding * 2);
+      figma.root.setPluginData("highlightNodeId", highlight.id);
+    } catch (_) {
+      removeAllHighlights();
+    }
+  }
   async function shakeViewport() {
     const center = figma.viewport.center;
     const shakeAmount = 8;
@@ -254,24 +373,20 @@
         isZooming = false;
         return;
       }
-      const targetX = bounds.x + bounds.width / 2;
-      const targetY = bounds.y + bounds.height / 2;
-      const minVisibleSize = 800;
-      const virtualWidth = Math.max(bounds.width * 3, minVisibleSize);
-      const virtualHeight = Math.max(bounds.height * 3, minVisibleSize);
-      const viewportBounds = figma.viewport.bounds;
-      const zoomX = viewportBounds.width / virtualWidth;
-      const zoomY = viewportBounds.height / virtualHeight;
-      const targetZoom = Math.max(0.15, Math.min(zoomX, zoomY, 0.5));
       const startCenter = figma.viewport.center;
       const startZoom = figma.viewport.zoom;
+      figma.viewport.scrollAndZoomIntoView([sceneNode]);
+      const endCenter = figma.viewport.center;
+      const endZoom = figma.viewport.zoom * 0.6;
+      figma.viewport.center = startCenter;
+      figma.viewport.zoom = startZoom;
       const steps = 12;
       const duration = 25;
       for (let i = 1; i <= steps; i++) {
         const t = easeOutCubic(i / steps);
-        const newX = startCenter.x + (targetX - startCenter.x) * t;
-        const newY = startCenter.y + (targetY - startCenter.y) * t;
-        const newZoom = startZoom + (targetZoom - startZoom) * t;
+        const newX = startCenter.x + (endCenter.x - startCenter.x) * t;
+        const newY = startCenter.y + (endCenter.y - startCenter.y) * t;
+        const newZoom = startZoom + (endZoom - startZoom) * t;
         figma.viewport.center = { x: newX, y: newY };
         figma.viewport.zoom = newZoom;
         await new Promise((resolve) => setTimeout(resolve, duration));
